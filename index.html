@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Laporan Pertandingan - Pencak Silat</title>
+    
+    <!-- Tailwind & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap');
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            background-color: #f1f5f9; 
+            color: #1e293b; 
+        }
+        
+        .report-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            text-align: center; 
+            table-layout: fixed; 
+            word-wrap: break-word;
+        }
+        .report-table th, .report-table td { 
+            border: 1px solid #cbd5e1; 
+            padding: 8px 6px; 
+            font-size: 13px;
+        }
+        .report-table th { 
+            background-color: #e2e8f0; 
+            font-weight: 800; 
+            text-transform: uppercase;
+        }
+        .report-table td {
+            font-weight: 600;
+        }
+        
+        .bg-blue-custom { background-color: #eff6ff; }
+        .text-blue-custom { color: #1e40af; }
+        .bg-red-custom { background-color: #fef2f2; }
+        .text-red-custom { color: #991b1b; }
+
+        /* ====================================================
+           STYLING KHUSUS UNTUK BROWSER PRINT / SAVE AS PDF (CTRL+P)
+           ==================================================== */
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white; font-size: 11px; }
+            .print-container { box-shadow: none !important; padding: 0 !important; border: none !important; margin: 0; max-width: 100%; }
+            
+            * {
+                background-color: transparent !important;
+                color: #000 !important;
+                border-color: #000 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+            .report-table th, .report-table td { 
+                border: 1px solid #000 !important; 
+                padding: 6px 4px !important; 
+            }
+            .report-table { font-size: 11px !important; }
+            .border-2 { border-width: 1px !important; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 relative">
+
+    <!-- Header Bar -->
+    <div class="max-w-5xl mx-auto mb-6 flex justify-between items-center no-print">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-black text-slate-800 uppercase italic"><i class="fas fa-clipboard-list text-emerald-600 mr-2"></i>Laporan Pertandingan</h1>
+            <p class="text-sm text-slate-500 font-bold mt-1">Sistem Penilaian Digital Otomatis - Sesuai Panel Dewan</p>
+        </div>
+        <div class="flex gap-2 items-center">
+            <!-- Icon Folder (Membuka Modal) -->
+            <button onclick="openFolder()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center justify-center">
+                <i class="fas fa-folder text-lg"></i>
+            </button>
+            
+            <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center gap-2">
+                <i class="fas fa-print"></i> <span class="hidden md:inline">Cetak Laporan</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Area Laporan Utama (Target Print) -->
+    <div id="pdf-content" class="max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl print-container border border-slate-200">
+        
+        <!-- Header Info Pertandingan -->
+        <div class="text-center mb-6 border-b-2 border-slate-200 pb-4">
+            <h2 class="text-xl md:text-2xl font-black uppercase text-slate-800 mb-1">PARTAI KE - <span id="rep-partai" class="text-emerald-600">--</span></h2>
+            <p id="rep-detail" class="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-widest">--- / --- / ---</p>
+            <div id="rep-status" class="mt-2 inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">Status: Menunggu Data</div>
+        </div>
+
+        <!-- Papan Skor Akhir (SINKRON DENGAN DEWAN) -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-3 mb-6">
+            <!-- Sudut Biru -->
+            <div class="flex-1 w-full bg-blue-50 border-2 border-blue-200 p-3 md:p-4 rounded-xl flex justify-between items-center shadow-sm">
+                <div class="text-left w-3/4">
+                    <div class="text-[9px] md:text-[10px] font-black uppercase text-blue-600 tracking-widest mb-1">Sudut Biru</div>
+                    <div id="rep-nama-biru" class="font-black text-base md:text-xl uppercase text-slate-800 truncate">---</div>
+                    <div id="rep-kont-biru" class="text-[10px] md:text-xs font-bold text-slate-500 uppercase truncate">---</div>
+                </div>
+                <div id="rep-skor-biru" class="text-3xl md:text-5xl font-black text-blue-700 w-1/4 text-right">0</div>
+            </div>
+            
+            <div class="text-lg md:text-xl font-black text-slate-300 italic no-print">VS</div>
+
+            <!-- Sudut Merah -->
+            <div class="flex-1 w-full bg-red-50 border-2 border-red-200 p-3 md:p-4 rounded-xl flex justify-between items-center shadow-sm">
+                <div id="rep-skor-merah" class="text-3xl md:text-5xl font-black text-red-700 w-1/4 text-left">0</div>
+                <div class="text-right w-3/4">
+                    <div class="text-[9px] md:text-[10px] font-black uppercase text-red-600 tracking-widest mb-1">Sudut Merah</div>
+                    <div id="rep-nama-merah" class="font-black text-base md:text-xl uppercase text-slate-800 truncate">---</div>
+                    <div id="rep-kont-merah" class="text-[10px] md:text-xs font-bold text-slate-500 uppercase truncate">---</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pemenang Info -->
+        <div id="rep-winner-box" class="hidden mb-6 w-full p-3 text-center rounded-xl font-black uppercase tracking-widest text-white shadow-md text-sm border-2">
+            <!-- Diisi via JS -->
+        </div>
+
+        <!-- Tabel Detail -->
+        <h3 class="font-black text-sm md:text-base text-slate-800 uppercase mb-2"><i class="fas fa-table mr-2 no-print"></i>Rincian Poin & Keputusan</h3>
+        <div id="table-wrapper" class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm mb-4">
+            <table class="report-table w-full">
+                <thead>
+                    <tr>
+                        <th class="w-[16%]">SUDUT</th>
+                        <th class="text-left w-[32%]">PARAMETER PENILAIAN</th>
+                        <th class="w-[12%]">BABAK I</th>
+                        <th class="w-[12%]">BABAK II</th>
+                        <th class="w-[12%]">BABAK III</th>
+                        <th class="w-[16%] bg-slate-300 text-slate-800">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody id="report-table-body">
+                    <!-- Data tabel dirender dari JavaScript -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="text-[10px] font-semibold text-slate-500 bg-slate-100 p-3 rounded-lg text-left uppercase tracking-widest leading-relaxed border border-slate-200">
+            <i class="fas fa-info-circle text-blue-500 mr-1 no-print"></i> <strong>Poin Valid (Sah):</strong> Sistem mengesahkan poin jika minimal 2 juri menekan input poin yang sama dalam waktu tidak lebih dari 2 detik. <br>
+            * Akumulasi nilai juri per babak ditampilkan sesuai histori. Nilai akhir mengikuti putusan mutlak Dewan.
+        </div>
+    </div>
+
+    <!-- MODAL FOLDER (Arsip) -->
+    <div id="folderModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm no-print">
+        <div class="bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="bg-slate-800 p-4 flex justify-between items-center text-white">
+                <h2 class="text-lg font-black uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-folder-open text-amber-400"></i> Arsip Laporan
+                </h2>
+                <div class="flex items-center gap-4">
+                    <!-- TOMBOL HAPUS SEMUA -->
+                    <button onclick="deleteAllArsip()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-2">
+                        <i class="fas fa-trash-alt"></i> Hapus Semua
+                    </button>
+                    <button onclick="closeFolder()" class="text-slate-300 hover:text-white transition transform hover:scale-110">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TABEL ARSIP -->
+            <div class="p-4 overflow-y-auto bg-slate-50 flex-1">
+                <table class="w-full bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm text-sm">
+                    <thead class="bg-slate-200 text-slate-700 uppercase text-[11px] font-black">
+                        <tr>
+                            <th class="p-3 border-b text-center w-10">No</th>
+                            <th class="p-3 border-b text-center w-16">Partai</th>
+                            <th class="p-3 border-b text-center">Fase</th>
+                            <th class="p-3 border-b text-left">Sudut Biru (Peserta & Kontingen)</th>
+                            <th class="p-3 border-b text-center">Kelas & Kategori</th>
+                            <th class="p-3 border-b text-right">Sudut Merah (Peserta & Kontingen)</th>
+                            <th class="p-3 border-b text-center w-28">Waktu Tersimpan</th>
+                            <th class="p-3 border-b text-center w-28">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="folder-table-body" class="text-slate-600 font-semibold divide-y divide-slate-100">
+                        <!-- Render via JS -->
+                    </tbody>
+                </table>
+                <div id="empty-folder" class="hidden text-center py-10 text-slate-400 font-bold uppercase text-xs">
+                    <i class="fas fa-box-open text-3xl mb-2"></i><br>Belum ada laporan tersimpan
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // Konfigurasi Database
+    const firebaseConfig = {
+      apiKey: "AIzaSyAVwQw-zBMEVbRaQc2lcWfdss3l2zOhoNs",
+      authDomain: "pscp-ternate.firebaseapp.com",
+      databaseURL: "https://pscp-ternate-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pscp-ternate",
+      storageBucket: "pscp-ternate.firebasestorage.app",
+      messagingSenderId: "1057698178770",
+      appId: "1:1057698178770:web:d4ed0a01f84d26603c2f0b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    const dbRef = ref(database, 'pencak_scoring_state');
+
+    window.state = null;
+    let liveFirebaseData = null; 
+
+    // Helper untuk menangani Array yang rusak/terpecah akibat sinkronisasi database
+    const ensureArray = (data, defaultLen = 3) => {
+        if (Array.isArray(data)) {
+            return Array.from({length: defaultLen}, (_, i) => Number(data[i]) || 0);
+        }
+        if (typeof data === 'object' && data !== null) {
+            return Array.from({length: defaultLen}, (_, i) => Number(data[i]) || 0);
+        }
+        return Array(defaultLen).fill(0);
+    };
+
+    // MENDENGARKAN PERUBAHAN DATABASE
+    onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) { 
+            liveFirebaseData = JSON.parse(JSON.stringify(data)); 
+            
+            // Selalu update UI jika tidak sedang menampilkan modal print arsip (modal tidak terlihat)
+            const folderModal = document.getElementById('folderModal');
+            if (folderModal.classList.contains('hidden')) {
+                window.state = JSON.parse(JSON.stringify(data));
+                renderReport(); 
+            }
+            checkAutoSave();
+        }
+    });
+
+    // SISTEM AUTO-SAVE KE FOLDER
+    function checkAutoSave() {
+        if (!liveFirebaseData || !liveFirebaseData.matches) return;
+        
+        const matchIdx = liveFirebaseData.bertandingIdx >= 0 ? liveFirebaseData.bertandingIdx : liveFirebaseData.idx;
+        const match = liveFirebaseData.matches[matchIdx];
+        
+        if (match && match.status === 'selesai') {
+            let arsip = JSON.parse(localStorage.getItem('pencak_arsip_laporan') || '[]');
+            
+            const dataMatch = JSON.parse(JSON.stringify(match));
+            const dataBiru = JSON.parse(JSON.stringify(liveFirebaseData.biru || {}));
+            const dataMerah = JSON.parse(JSON.stringify(liveFirebaseData.merah || {}));
+            
+            const existingIdx = arsip.findIndex(r => r.match.p === match.p && r.match.kelas === match.kelas);
+            
+            if (existingIdx !== -1) {
+                const hasScoreData = (dataBiru.juri || dataBiru.jat || dataMerah.juri || dataMerah.jat);
+                if (hasScoreData || !arsip[existingIdx].biru.juri) {
+                    arsip[existingIdx].match = dataMatch;
+                    arsip[existingIdx].biru = dataBiru;
+                    arsip[existingIdx].merah = dataMerah;
+                }
+            } else {
+                arsip.push({
+                    match: dataMatch,
+                    biru: dataBiru,
+                    merah: dataMerah,
+                    timestamp: new Date().getTime()
+                });
+            }
+            
+            arsip.sort((a,b) => b.timestamp - a.timestamp);
+            localStorage.setItem('pencak_arsip_laporan', JSON.stringify(arsip));
+            
+            const folderModal = document.getElementById('folderModal');
+            if(folderModal && !folderModal.classList.contains('hidden')){
+                renderFolderTable();
+            }
+        }
+    }
+
+    // FUNGSI PERHITUNGAN TOTAL DEWAN
+    const calculateTotalDewan = (sideData) => {
+        if(!sideData) return 0;
+        if(sideData.dis || sideData.ud || sideData.wmp) return 0;
+        
+        const juriObj = sideData.juri || {};
+        const j1T = ensureArray(juriObj.j1).reduce((a,b)=>a+b,0);
+        const j2T = ensureArray(juriObj.j2).reduce((a,b)=>a+b,0);
+        const j3T = ensureArray(juriObj.j3).reduce((a,b)=>a+b,0);
+        
+        const sorted = [j1T, j2T, j3T].sort((a,b)=>a-b);
+        const validScoreTotal = sorted[1]; 
+        
+        const pMap = { teguran1:1, teguran2:2, peringatan1:5, peringatan2:10 };
+        let tp = 0;
+        (sideData.penHistory || []).forEach(i => tp += (pMap[i.type]||0));
+        
+        const totJatuhan = sideData.jat || 0;
+        
+        return validScoreTotal + totJatuhan - tp;
+    };
+
+    // FUNGSI FORMATTING DETAIL
+    const formatJatuhan = (hist, round) => {
+        const count = hist.filter(j => j.round === round).length;
+        return count > 0 ? `<span class="font-black">${count}x</span> <span class="text-[10px] opacity-70">(+${count * 3})</span>` : '-';
+    };
+
+    const formatBinaan = (hist, round) => {
+        const count = hist.filter(p => p.round === round && p.type.startsWith('binaan')).length;
+        return count > 0 ? `<span class="font-black">${count}x</span>` : '-';
+    };
+
+    const formatPenalty = (hist, round, prefix) => {
+        const arr = hist.filter(p => p.round === round && p.type.startsWith(prefix));
+        if (arr.length === 0) return '-';
+        let pts = 0;
+        arr.forEach(p => {
+            if (p.type === 'teguran1') pts += 1;
+            if (p.type === 'teguran2') pts += 2;
+            if (p.type === 'peringatan1') pts += 5;
+            if (p.type === 'peringatan2') pts += 10;
+        });
+        return `<span class="font-black">${arr.length}x</span> <span class="text-[10px] opacity-70">(-${pts})</span>`;
+    };
+
+    // FUNGSI RENDER TABEL DETAIL 
+    function generateTableRows(sideName, sideData, cssBgClass, cssTextClass) {
+        if(!sideData) return '';
+        
+        const juriObj = sideData.juri || {};
+        const j1 = ensureArray(juriObj.j1);
+        const j2 = ensureArray(juriObj.j2);
+        const j3 = ensureArray(juriObj.j3);
+
+        const j1T = j1.reduce((a,b)=>a+b,0);
+        const j2T = j2.reduce((a,b)=>a+b,0);
+        const j3T = j3.reduce((a,b)=>a+b,0);
+
+        const getMedian = (v1, v2, v3) => [v1, v2, v3].sort((a,b)=>a-b)[1];
+        const v1 = getMedian(j1[0], j2[0], j3[0]);
+        const v2 = getMedian(j1[1], j2[1], j3[1]);
+        const v3 = getMedian(j1[2], j2[2], j3[2]);
+        const vTotal = getMedian(j1T, j2T, j3T); 
+
+        const jatHist = sideData.jatHistory || [];
+        const penHist = sideData.penHistory || [];
+        const grandTotal = calculateTotalDewan(sideData);
+
+        return `
+            <tr class="${cssBgClass} ${cssTextClass} border-t-[3px] border-slate-300">
+                <td rowspan="9" class="font-black text-sm md:text-lg align-middle border-r border-slate-300 shadow-inner">${sideName}</td>
+                <td class="text-left text-xs font-semibold pl-3">Masuk Juri 1</td>
+                <td>${j1[0] || '-'}</td><td>${j1[1] || '-'}</td><td>${j1[2] || '-'}</td>
+                <td class="bg-black/5 font-bold">${j1T}</td>
+            </tr>
+            <tr class="${cssBgClass} ${cssTextClass}">
+                <td class="text-left text-xs font-semibold pl-3">Masuk Juri 2</td>
+                <td>${j2[0] || '-'}</td><td>${j2[1] || '-'}</td><td>${j2[2] || '-'}</td>
+                <td class="bg-black/5 font-bold">${j2T}</td>
+            </tr>
+            <tr class="${cssBgClass} ${cssTextClass}">
+                <td class="text-left text-xs font-semibold pl-3">Masuk Juri 3</td>
+                <td>${j3[0] || '-'}</td><td>${j3[1] || '-'}</td><td>${j3[2] || '-'}</td>
+                <td class="bg-black/5 font-bold">${j3T}</td>
+            </tr>
+            <tr class="${cssBgClass} ${cssTextClass} bg-black/5">
+                <td class="text-left font-black pl-3 text-xs uppercase"><i class="fas fa-check-circle mr-1 opacity-70 no-print"></i> Poin Sah (Valid)</td>
+                <td class="font-bold">${v1 || '-'}</td>
+                <td class="font-bold">${v2 || '-'}</td>
+                <td class="font-bold">${v3 || '-'}</td>
+                <td class="font-black text-sm bg-black/10">${vTotal}</td>
+            </tr>
+            <tr class="${cssBgClass} text-emerald-600">
+                <td class="text-left font-bold pl-3 text-xs uppercase"><i class="fas fa-arrow-down mr-1 opacity-70 no-print"></i> Jatuhan (+3)</td>
+                <td>${formatJatuhan(jatHist, 1)}</td>
+                <td>${formatJatuhan(jatHist, 2)}</td>
+                <td>${formatJatuhan(jatHist, 3)}</td>
+                <td class="font-black bg-emerald-100">${sideData.jat || 0}</td>
+            </tr>
+            <tr class="${cssBgClass} text-slate-500">
+                <td class="text-left font-bold pl-3 text-xs uppercase"><i class="fas fa-hand-paper mr-1 opacity-70 no-print"></i> Binaan</td>
+                <td>${formatBinaan(penHist, 1)}</td>
+                <td>${formatBinaan(penHist, 2)}</td>
+                <td>${formatBinaan(penHist, 3)}</td>
+                <td class="font-bold bg-black/5">-</td>
+            </tr>
+            <tr class="${cssBgClass} text-amber-600">
+                <td class="text-left font-bold pl-3 text-xs uppercase"><i class="fas fa-exclamation-triangle mr-1 opacity-70 no-print"></i> Teguran (-)</td>
+                <td>${formatPenalty(penHist, 1, 'teguran')}</td>
+                <td>${formatPenalty(penHist, 2, 'teguran')}</td>
+                <td>${formatPenalty(penHist, 3, 'teguran')}</td>
+                <td class="font-bold bg-amber-100">${penHist.filter(p=>p.type.startsWith('teguran')).reduce((acc, p) => acc + (p.type==='teguran1'?1:2), 0)}</td>
+            </tr>
+            <tr class="${cssBgClass} text-rose-600">
+                <td class="text-left font-bold pl-3 text-xs uppercase"><i class="fas fa-ban mr-1 opacity-70 no-print"></i> Peringatan (-)</td>
+                <td>${formatPenalty(penHist, 1, 'peringatan')}</td>
+                <td>${formatPenalty(penHist, 2, 'peringatan')}</td>
+                <td>${formatPenalty(penHist, 3, 'peringatan')}</td>
+                <td class="font-bold bg-rose-100">${penHist.filter(p=>p.type.startsWith('peringatan')).reduce((acc, p) => acc + (p.type==='peringatan1'?5:10), 0)}</td>
+            </tr>
+            <tr class="${cssBgClass} ${cssTextClass}">
+                <td class="text-left font-black pl-3 uppercase text-sm">TOTAL AKHIR DEWAN</td>
+                <td colspan="3"></td>
+                <td class="font-black text-2xl bg-black/10 shadow-inner">${grandTotal}</td>
+            </tr>
+        `;
+    }
+
+    // RENDER LAYOUT UTAMA
+    function renderReport() {
+        if (!window.state) return;
+        
+        const matchIdx = window.state.bertandingIdx >= 0 ? window.state.bertandingIdx : window.state.idx;
+        const match = window.state.matches[matchIdx] || window.state.matches[0];
+        if(!match) return;
+
+        document.getElementById('rep-partai').innerText = match.p || '---';
+        document.getElementById('rep-detail').innerText = `${match.fase || ''} / Kelas ${match.kelas || ''} ${match.cat || ''} ${match.gender || ''}`;
+        
+        const statusEl = document.getElementById('rep-status');
+        if (match.status === 'selesai') {
+            statusEl.innerText = 'PERTANDINGAN SELESAI';
+            statusEl.className = 'mt-2 inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-white border-2 border-slate-900';
+        } else if (match.status === 'bertanding') {
+            statusEl.innerText = 'SEDANG BERJALAN (BABAK ' + (window.state.babak || 1) + ')';
+            statusEl.className = 'mt-2 inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border-2 border-emerald-300';
+        } else {
+            statusEl.innerText = 'BELUM DIMULAI';
+            statusEl.className = 'mt-2 inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border-2 border-amber-300';
+        }
+
+        document.getElementById('rep-nama-biru').innerText = match.b || 'SUDUT BIRU';
+        document.getElementById('rep-kont-biru').innerText = match.kb || '---';
+        
+        document.getElementById('rep-nama-merah').innerText = match.m || 'SUDUT MERAH';
+        document.getElementById('rep-kont-merah').innerText = match.km || '---';
+
+        const renderScoreText = (sideData, totalNumeric) => {
+            if (sideData.dis) return "DISK";
+            if (sideData.ud) return "UD";
+            if (sideData.wmp) return "WMP";
+            return totalNumeric;
+        };
+
+        const totalBiru = calculateTotalDewan(window.state.biru);
+        const totalMerah = calculateTotalDewan(window.state.merah);
+
+        const textBiru = renderScoreText(window.state.biru, totalBiru);
+        const textMerah = renderScoreText(window.state.merah, totalMerah);
+        
+        const elSkorBiru = document.getElementById('rep-skor-biru');
+        const elSkorMerah = document.getElementById('rep-skor-merah');
+        
+        elSkorBiru.innerText = textBiru;
+        elSkorMerah.innerText = textMerah;
+        elSkorBiru.className = isNaN(textBiru) ? "text-xl md:text-3xl font-black text-blue-700 w-1/4 text-right" : "text-3xl md:text-5xl font-black text-blue-700 w-1/4 text-right";
+        elSkorMerah.className = isNaN(textMerah) ? "text-xl md:text-3xl font-black text-red-700 w-1/4 text-left" : "text-3xl md:text-5xl font-black text-red-700 w-1/4 text-left";
+
+        const winBox = document.getElementById('rep-winner-box');
+        if (match.status === 'selesai' && match.winnerSide) {
+            winBox.classList.remove('hidden');
+            if (match.winnerSide === 'biru') {
+                winBox.className = "mb-6 w-full p-3 text-center rounded-xl font-black uppercase tracking-widest text-white shadow-md text-sm bg-blue-600 border-2 border-blue-800";
+                winBox.innerHTML = `<i class="fas fa-trophy text-yellow-300 mr-2 no-print"></i> PEMENANG: ${match.b} (BIRU)`;
+            } else if (match.winnerSide === 'merah') {
+                winBox.className = "mb-6 w-full p-3 text-center rounded-xl font-black uppercase tracking-widest text-white shadow-md text-sm bg-red-600 border-2 border-red-800";
+                winBox.innerHTML = `<i class="fas fa-trophy text-yellow-300 mr-2 no-print"></i> PEMENANG: ${match.m} (MERAH)`;
+            } else if (match.winnerSide === 'tie') {
+                winBox.className = "mb-6 w-full p-3 text-center rounded-xl font-black uppercase tracking-widest text-white shadow-md text-sm bg-slate-800 border-2 border-slate-900";
+                winBox.innerHTML = `<i class="fas fa-balance-scale text-yellow-300 mr-2 no-print"></i> SKOR SERI - KEPUTUSAN DEWAN`;
+            }
+        } else {
+            winBox.classList.add('hidden');
+        }
+
+        const tbody = document.getElementById('report-table-body');
+        const rowsBiru = generateTableRows('SUDUT BIRU', window.state.biru, 'bg-blue-custom', 'text-blue-custom');
+        const rowsMerah = generateTableRows('SUDUT MERAH', window.state.merah, 'bg-red-custom', 'text-red-custom');
+        tbody.innerHTML = rowsBiru + rowsMerah;
+    }
+
+    // RENDER TABEL ARSIP
+    window.renderFolderTable = function() {
+        const arsip = JSON.parse(localStorage.getItem('pencak_arsip_laporan') || '[]');
+        const tbody = document.getElementById('folder-table-body');
+        const emptyDiv = document.getElementById('empty-folder');
+        
+        tbody.innerHTML = '';
+        
+        if (arsip.length === 0) {
+            emptyDiv.classList.remove('hidden');
+        } else {
+            emptyDiv.classList.add('hidden');
+            arsip.forEach((data, index) => {
+                
+                const dateObj = new Date(data.timestamp || Date.now());
+                const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 border-b text-center align-middle">${index + 1}</td>
+                    <td class="p-3 border-b text-center align-middle font-bold text-slate-800">${data.match.p}</td>
+                    <td class="p-3 border-b text-center align-middle text-xs uppercase font-bold text-slate-500">${data.match.fase}</td>
+                    
+                    <td class="p-3 border-b text-left align-middle">
+                        <div class="font-bold text-blue-600 uppercase text-sm">${data.match.b}</div>
+                        <div class="text-[10px] text-slate-500 font-semibold uppercase mt-0.5"><i class="fas fa-shield-alt mr-1 opacity-50"></i>${data.match.kb}</div>
+                    </td>
+                    
+                    <td class="p-3 border-b text-center align-middle">
+                        <div class="inline-block bg-slate-100 rounded px-2 py-1">
+                            <div class="text-xs font-black uppercase text-slate-700">Kelas ${data.match.kelas}</div>
+                            <div class="text-[10px] text-slate-500 font-bold uppercase mt-0.5">${data.match.cat} ${data.match.gender}</div>
+                        </div>
+                    </td>
+                    
+                    <td class="p-3 border-b text-right align-middle">
+                        <div class="font-bold text-red-600 uppercase text-sm">${data.match.m}</div>
+                        <div class="text-[10px] text-slate-500 font-semibold uppercase mt-0.5">${data.match.km}<i class="fas fa-shield-alt ml-1 opacity-50"></i></div>
+                    </td>
+                    
+                    <td class="p-3 border-b text-center align-middle">
+                        <div class="inline-block bg-white rounded-lg px-3 py-1.5 border border-slate-200 shadow-sm w-full">
+                            <div class="text-[11px] font-black uppercase text-slate-700 whitespace-nowrap"><i class="fas fa-calendar-alt mr-1 text-slate-400"></i>${dateStr}</div>
+                            <div class="text-[10px] text-emerald-600 font-bold mt-1 whitespace-nowrap"><i class="fas fa-clock mr-1 opacity-70"></i>${timeStr}</div>
+                        </div>
+                    </td>
+
+                    <td class="p-3 border-b text-center align-middle">
+                        <div class="flex flex-col gap-1.5">
+                            <button onclick="printArsip(${index})" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg text-[11px] font-bold shadow-sm transition active:scale-95 flex items-center justify-center gap-1 w-full" id="btn-print-${index}">
+                                <i class="fas fa-print"></i> Cetak
+                            </button>
+                            <button onclick="deleteArsip(${index})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-[11px] font-bold shadow-sm transition active:scale-95 flex items-center justify-center gap-1 w-full">
+                                <i class="fas fa-trash-alt"></i> Hapus
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+    // FUNGSI HAPUS 1 ARSIP
+    window.deleteArsip = function(index) {
+        if (confirm('Apakah Anda yakin ingin menghapus laporan partai ini dari arsip?')) {
+            let arsip = JSON.parse(localStorage.getItem('pencak_arsip_laporan') || '[]');
+            arsip.splice(index, 1);
+            localStorage.setItem('pencak_arsip_laporan', JSON.stringify(arsip));
+            renderFolderTable();
+        }
+    }
+
+    // FUNGSI HAPUS SEMUA ARSIP
+    window.deleteAllArsip = function() {
+        let arsip = JSON.parse(localStorage.getItem('pencak_arsip_laporan') || '[]');
+        if (arsip.length === 0) {
+            alert('Arsip laporan sudah kosong.');
+            return;
+        }
+        if (confirm('PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA laporan dari arsip? Aksi ini tidak dapat dibatalkan.')) {
+            localStorage.removeItem('pencak_arsip_laporan');
+            renderFolderTable();
+        }
+    }
+
+    // FUNGSI CETAK LAPORAN DARI ARSIP FOLDER
+    window.printArsip = function(index) {
+        const arsip = JSON.parse(localStorage.getItem('pencak_arsip_laporan') || '[]');
+        const data = arsip[index];
+        if(!data) return;
+
+        // Injeksi state sementara menggunakan data arsip untuk dirender dan dicetak
+        window.state = {
+            idx: 0,
+            bertandingIdx: 0, 
+            matches: [data.match],
+            biru: data.biru,
+            merah: data.merah,
+            babak: 3 // Set ke 3 untuk memastikan seluruh histori babak terbuka
+        };
+        
+        renderReport();
+
+        // Sembunyikan modal Folder sementara supaya yang ter-print hanya area laporan utama
+        const folderModal = document.getElementById('folderModal');
+        folderModal.classList.add('hidden');
+
+        // Memberikan sedikit waktu untuk render DOM, lalu otomatis memanggil Print/Cetak
+        setTimeout(() => {
+            window.print();
+            
+            // Mengembalikan State Data ke Kondisi LIVE FIREBASE setelah layar Print ditutup
+            if (liveFirebaseData) {
+                window.state = JSON.parse(JSON.stringify(liveFirebaseData));
+                renderReport();
+            }
+            
+            // Menampilkan Modal Folder Kembali
+            folderModal.classList.remove('hidden');
+        }, 500);
+    }
+
+    // MODAL FOLDER
+    window.openFolder = function() {
+        document.getElementById('folderModal').classList.remove('hidden');
+        renderFolderTable();
+    }
+    
+    window.closeFolder = function() {
+        document.getElementById('folderModal').classList.add('hidden');
+    }
+
+    renderFolderTable();
+
+</script>
+
+</body>
+</html>
